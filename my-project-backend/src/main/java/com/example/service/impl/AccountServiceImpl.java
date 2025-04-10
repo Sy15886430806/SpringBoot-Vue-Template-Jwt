@@ -1,19 +1,24 @@
 package com.example.service.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dto.Account;
+import com.example.entity.vo.request.EmailRegisterVo;
 import com.example.mapper.AccountMapper;
 import com.example.service.AccountService;
 import com.example.utils.Const;
 import com.example.utils.FlowUtils;
 import jakarta.annotation.Resource;
 import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -30,13 +35,9 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     @Resource(name = "stringRedisTemplate")
     StringRedisTemplate redisTemplate;
 
-    /**
-     * 根据用户名或邮箱加载用户详细信息
-     *
-     * @param username 用户名或邮箱
-     * @return UserDetails 用户详细信息
-     * @throws UsernameNotFoundException 如果找不到用户
-     */
+    @Resource
+    PasswordEncoder passwordEncoder;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // 根据用户名或邮箱查找账户信息
@@ -50,21 +51,6 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
                 .password(account.getPassword())
                 .roles(account.getRole())
                 .build();
-    }
-
-    /**
-     * 根据用户名或邮箱查找账户信息
-     *
-     * @param text 用户名或邮箱
-     * @return Account 账户信息
-     */
-    @Override
-    public Account findAccountByNameOrEmail(String text) {
-        // 构建查询条件，根据用户名或邮箱进行查询
-        return this.query()
-                .eq("username", text).or()
-                .eq("email", text)
-                .one();
     }
 
     @Override
@@ -88,6 +74,43 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
             // 返回null表示操作成功
             return null;
         }
+    }
+
+    @Override
+    public String registerEmailAccount(EmailRegisterVo vo) {
+        String email = vo.getEmail();
+        String username = vo.getUsername();
+        String key = Const.VERIFY_EMAIL_DATA + email;
+        String code = redisTemplate.opsForValue().get(key);
+        if (code == null) return "请先获取验证码";
+        if (!code.equals(vo.getCode())) return "验证码输入错误，请重新输入";
+        if (this.existsAccountByEmailOrName(email)) return "此电子邮件已被人注册，请重新输入";
+        if (this.existsAccountByEmailOrName(username)) return "此昵称已被人注册，请重新输入";
+        String password = passwordEncoder.encode(vo.getPassword());
+        Account account = new Account(null, username, password, email, "user", new Date());
+        if (this.save(account)) {
+            redisTemplate.delete(key);
+            return null;
+        } else {
+            return "服务器错误，请联系管理员qq3362187436";
+        }
+    }
+
+    @Override
+    public Account findAccountByNameOrEmail(String text) {
+        // 构建查询条件，根据用户名或邮箱进行查询
+        return this.query()
+                .eq("username", text).or()
+                .eq("email", text)
+                .one();
+    }
+
+    private boolean existsAccountByEmailOrName(String text) {
+        return this.baseMapper.exists(
+                Wrappers.<Account>query()
+                        .eq("email", text)
+                        .or(q -> q.eq("username", text))
+        );
     }
 
     // 检查IP的请求频率是否超过限制

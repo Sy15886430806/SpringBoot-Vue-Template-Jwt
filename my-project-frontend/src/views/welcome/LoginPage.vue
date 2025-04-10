@@ -3,7 +3,7 @@ import {Lock, User} from '@element-plus/icons-vue'
 import {reactive} from "vue";
 import {login} from "@/net";
 import {ref} from 'vue'
-import router from "@/router/index.js";
+import router from "@/router";
 
 const formRef = ref()
 
@@ -40,7 +40,7 @@ function userLogin() {
     <div style="margin-top: 20px">
       <el-form :model="form" :rules="rule" ref="formRef">
         <el-form-item prop="username">
-          <el-input v-model="form.username" maxlength="10" type="text" placeholder="用户名或邮箱">
+          <el-input v-model="form.username" type="text" placeholder="用户名或邮箱">
             <template #prefix>
               <el-icon>
                 <User/>
@@ -75,11 +75,11 @@ function userLogin() {
           <el-col :span="4"></el-col>
           <el-col :span="16">
             <div class="grid-content ep-bg-purple"/>
-            <el-button @click="userLogin" style="width: 150px" type="primary">立即登录</el-button>
+            <el-button @click="userLogin" style="width: 150px" type="primary" class="siyuan-button color-button">立即登录</el-button>
           </el-col>
           <el-col :span="4">
             <div class="grid-content ep-bg-purple"/>
-            <el-link type="primary">注册</el-link>
+            <el-link type="primary" @click="router.push('/register')">注册</el-link>
           </el-col>
         </el-row>
       </el-col>
@@ -92,5 +92,17 @@ function userLogin() {
 .grid-content {
   border-radius: 4px;
   min-height: 8px;
+}
+
+.siyuan-button {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.color-button {
+  background-color: #409EFF; /* Element Plus 默认主题蓝 */
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.5);
 }
 </style>

@@ -9,5 +9,7 @@
 </template>
 
 <style scoped>
-
+* {
+  font-family: 'Noto Serif SC', serif;
+}
 </style>

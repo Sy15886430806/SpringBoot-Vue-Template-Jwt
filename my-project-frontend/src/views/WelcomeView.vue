@@ -18,7 +18,11 @@
 
     <!-- 居中悬浮卡片 -->
     <div class="right-card">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <transition name="el-fade-in-linear" mode="out-in" >
+          <component :is="Component"/>
+        </transition>
+      </router-view>
     </div>
   </div>
 </template>
@@ -27,7 +31,6 @@
 <style scoped>
 
 .welcome-title {
-  font-family: 'Noto Serif SC', serif;
   position: absolute;
   top: 15%;
   left: 50%;
