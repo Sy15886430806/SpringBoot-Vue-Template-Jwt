@@ -17,12 +17,20 @@ const router = createRouter({
                     path: 'register',
                     name: 'welcome-register',
                     component: () => import('@/views/welcome/RegisterPage.vue')
+                }, {
+                    path: 'reset',
+                    name: 'welcome-reset',
+                    component: () => import('@/views/welcome/ResetPage.vue')
                 }
             ]
         }, {
             path: '/index',
             name: 'index',
             component: () => import('@/views/IndexView.vue')
+        }, {
+            path: '/time',
+            name: 'time',
+            component: () => import('@/views/TimePage.vue')
         }
     ]
 })

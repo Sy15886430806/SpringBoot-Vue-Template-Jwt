@@ -1,8 +1,10 @@
 package com.example.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dto.Account;
+import com.example.entity.vo.request.ConfirmResetVo;
 import com.example.entity.vo.request.EmailRegisterVo;
 import com.example.mapper.AccountMapper;
 import com.example.service.AccountService;
@@ -70,7 +72,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
             amqpTemplate.convertAndSend("mail", data);
             // 将验证码存储到Redis中，并设置过期时间为3分钟
             redisTemplate.opsForValue()
-                    .set(Const.VERIFY_EMAIL_DATA + email, String.valueOf(code), 3, TimeUnit.MINUTES);
+                    .set(getEmailKey(email), String.valueOf(code), 3, TimeUnit.MINUTES);
             // 返回null表示操作成功
             return null;
         }
@@ -80,7 +82,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     public String registerEmailAccount(EmailRegisterVo vo) {
         String email = vo.getEmail();
         String username = vo.getUsername();
-        String key = Const.VERIFY_EMAIL_DATA + email;
+        String key = getEmailKey(email);
         String code = redisTemplate.opsForValue().get(key);
         if (code == null) return "请先获取验证码";
         if (!code.equals(vo.getCode())) return "验证码输入错误，请重新输入";
@@ -94,6 +96,42 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         } else {
             return "服务器错误，请联系管理员qq3362187436";
         }
+    }
+
+    @Override
+    public String resetConfirm(ConfirmResetVo vo) {
+        String email = vo.getEmail();
+        String key = getEmailKey(email);
+        String code = redisTemplate.opsForValue().get(key);
+        if (code == null) return "请先获取验证码";
+        if (!code.equals(vo.getCode())) return "验证码输入错误，请重新输入";
+        return null;
+    }
+
+    @Override
+    public String resetEmailAccountPassword(EmailRegisterVo vo) {
+        String email = vo.getEmail();
+        String key = getEmailKey(email);
+
+        Account account = this.getOne(new LambdaQueryWrapper<Account>().eq(Account::getEmail, email));
+
+        // 如果用户不存在，返回提示
+        if (account == null) {
+            return "该邮箱未注册";
+        }
+
+        String verify = this.resetConfirm(new ConfirmResetVo(email, vo.getCode()));
+        if(verify != null) return verify;
+
+        String password = passwordEncoder.encode(vo.getPassword());
+        boolean update = this.update()
+                .eq("email", email)
+                .set("password", password)
+                .update();
+        if(update) {
+            redisTemplate.delete(key);
+        }
+        return null;
     }
 
     @Override
@@ -116,9 +154,17 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     // 检查IP的请求频率是否超过限制
     private boolean verifyLimit(String ip) {
         // 构造Redis中的键名
-        String key = Const.VERIFY_EMAIL_LIMIT + ip;
+        String key = getIpKey(ip);
         // 使用流量控制工具检查请求频率，限制为每分钟一次
         return flowUtils.limitOnceCheck(key, 60);
+    }
+
+    private String getEmailKey(String email) {
+        return Const.VERIFY_EMAIL_DATA + email;
+    }
+
+    private String getIpKey(String ip) {
+        return Const.VERIFY_EMAIL_LIMIT + ip;
     }
 
 }

@@ -1,12 +1,15 @@
 <script setup>
 
+
+
 </script>
 
 <template>
   <div style="width: 100vw;height: 100vh;overflow: hidden;position: relative">
+
     <!-- 背景图 -->
     <el-image
-        style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 0"
+        style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: -1"
         fit="cover"
         src="https://5pw.net/i/2025/03/06/67c910a925b7e.jpg"
     />

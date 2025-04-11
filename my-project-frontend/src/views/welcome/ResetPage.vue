@@ -10,22 +10,11 @@ const code_time = ref(0)
 const formRef = ref()
 
 const form = reactive({
-  username: '',
-  password: '',
-  password_repeat: '',
   email: '',
   code: '',
+  password: '',
+  password_repeat: ''
 })
-
-const validateUsername = (rule, value, callback) => {
-  if (value === '') {
-    callback(new Error('请输入用户名'))
-  } else if (!/^[a-zA-Z0-9\u4e00-\u9fa5]+$/.test(value)) {
-    callback(new Error('用户名不能包含特殊字符，只能是中/英文'))
-  } else {
-    callback()
-  }
-}
 
 const validatePassword = (rule, value, callback) => {
   if (value === '') {
@@ -38,8 +27,12 @@ const validatePassword = (rule, value, callback) => {
 }
 
 const rule = {
-  username: [
-    {validator: validateUsername, trigger: ['blur', 'change']},
+  email: [
+    {required: true, message: '请输入邮件地址', trigger: 'blur'},
+    {type: 'email', message: '请输入合法的电子邮件地址', trigger: ['blur', 'change']}
+  ],
+  code: [
+    {required: true, message: '请输入验证码', trigger: 'blur'},
   ],
   password: [
     {required: true, message: '请输入密码', trigger: 'blur'},
@@ -47,13 +40,6 @@ const rule = {
   ],
   password_repeat: [
     {validator: validatePassword, trigger: ['blur', 'change']},
-  ],
-  email: [
-    {required: true, message: '请输入邮件地址', trigger: 'blur'},
-    {type: 'email', message: '请输入合法的电子邮件地址', trigger: ['blur', 'change']}
-  ],
-  code: [
-    {required: true, message: '请输入验证码', trigger: 'blur'},
   ]
 }
 
@@ -86,11 +72,12 @@ function askCode() {
 
 const isEmailValid = computed(() => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(form.email))
 
-function register() {
+
+function reset() {
   formRef.value.validate((valid) => {
     if(valid) {
-      post('api/auth/register', {...form}, () => {
-        ElMessage.success('注册成功，欢迎加入我们')
+      post('api/auth/reset', {...form}, () => {
+        ElMessage.success('重置密码成功，返回登录')
         router.push('/')
       })
     } else {
@@ -104,37 +91,10 @@ function register() {
 <template>
   <div style="text-align: center; margin: 0 20px">
     <div>
-      <div style="font-size: 25px;font-weight: bold">注册</div>
+      <div style="font-size: 25px;font-weight: bold">重置密码</div>
     </div>
     <div style="margin-top: 20px">
       <el-form :model="form" :rules="rule" ref="formRef">
-        <el-form-item prop="username">
-          <el-input v-model="form.username" maxlength="10" type="text" placeholder="用户名">
-            <template #prefix>
-              <el-icon>
-                <User/>
-              </el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input v-model="form.password" maxlength="20" type="password" placeholder="密码">
-            <template #prefix>
-              <el-icon>
-                <Lock/>
-              </el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-        <el-form-item prop="password_repeat">
-          <el-input v-model="form.password_repeat" maxlength="20" type="password" placeholder="重复密码">
-            <template #prefix>
-              <el-icon>
-                <Lock/>
-              </el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
         <el-form-item prop="email">
           <el-input v-model="form.email" type="text" placeholder="电子邮件">
             <template #prefix>
@@ -156,16 +116,36 @@ function register() {
               </el-input>
             </el-col>
             <el-col :span="5">
-              <el-button type="primary" class="siyuan-button color-button" @click="askCode" :disabled="!isEmailValid || code_time">
+              <el-button type="primary" class="siyuan-button color-button" @click="askCode"
+                         :disabled="!isEmailValid || code_time">
                 {{ code_time > 0 ? `${code_time}秒可重试` : '获取验证码' }}
               </el-button>
             </el-col>
           </el-row>
         </el-form-item>
+        <el-form-item prop="password">
+          <el-input v-model="form.password" maxlength="20" type="password" placeholder="新密码">
+            <template #prefix>
+              <el-icon>
+                <Lock/>
+              </el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item prop="password_repeat">
+          <el-input v-model="form.password_repeat" maxlength="20" type="password" placeholder="重复密码">
+            <template #prefix>
+              <el-icon>
+                <Lock/>
+              </el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
       </el-form>
     </div>
     <div class="grid-content ep-bg-purple" style="margin-top: 40px">
-      <el-button @click="register" style="width: 150px" type="primary" class="siyuan-button color-button">立即注册</el-button>
+      <el-button @click="reset" style="width: 150px" type="primary" class="siyuan-button color-button">立即重置
+      </el-button>
     </div>
     <div style="margin-top: 20px ">
       <span style="font-size: 13px;line-height: 15px;color: grey">已有账号？</span>

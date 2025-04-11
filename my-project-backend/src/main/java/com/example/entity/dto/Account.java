@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.example.entity.BaseData;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import org.springframework.security.core.userdetails.User;
 
 import java.util.Date;
 
