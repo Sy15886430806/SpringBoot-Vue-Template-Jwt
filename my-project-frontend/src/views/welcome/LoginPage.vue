@@ -1,37 +1,3 @@
-<script setup>
-import {Lock, User} from '@element-plus/icons-vue'
-import {reactive} from "vue";
-import {login} from "@/net";
-import {ref} from 'vue'
-import router from "@/router";
-
-const formRef = ref()
-
-const form = reactive({
-  username: '',
-  password: '',
-  remember: false
-})
-
-const rule = {
-  username: [
-    {required: true, message: '请输入用户名'}
-  ],
-  password: [
-    {required: true, message: '请输入密码'}
-  ],
-}
-
-function userLogin() {
-  formRef.value.validate((valid) => {
-    if (valid) {
-      login(form.username, form.password, form.remember, () => router.push('/index'))
-    }
-  })
-}
-
-</script>
-
 <template>
   <div style="text-align: center; margin: 0 20px">
     <div>
@@ -64,7 +30,7 @@ function userLogin() {
             </el-form-item>
           </el-col>
           <el-col :span="12" style="text-align: right">
-            <el-link @click="router.push('/reset')">忘记密码？</el-link>
+            <el-link @click="router.push('/forget')">忘记密码？</el-link>
           </el-col>
         </el-row>
       </el-form>
@@ -75,7 +41,7 @@ function userLogin() {
           <el-col :span="4"></el-col>
           <el-col :span="16">
             <div class="grid-content ep-bg-purple"/>
-            <el-button @click="userLogin" style="width: 150px" type="primary" class="siyuan-button color-button">立即登录</el-button>
+            <el-button @click="userLogin()" style="width: 150px" type="primary" class="siyuan-button color-button">立即登录</el-button>
           </el-col>
           <el-col :span="4">
             <div class="grid-content ep-bg-purple"/>
@@ -86,6 +52,39 @@ function userLogin() {
     </el-row>
   </div>
 </template>
+
+<script setup>
+import {Lock, User} from '@element-plus/icons-vue'
+import {reactive} from "vue";
+import {login} from "@/net";
+import {ref} from 'vue'
+import router from "@/router";
+
+const formRef = ref()
+const form = reactive({
+  username: '',
+  password: '',
+  remember: false
+})
+
+const rule = {
+  username: [
+    {required: true, message: '请输入用户名'}
+  ],
+  password: [
+    {required: true, message: '请输入密码'}
+  ],
+}
+
+function userLogin() {
+  formRef.value.validate((valid) => {
+    if (valid) {
+      login(form.username, form.password, form.remember, () => router.push('/index'))
+    }
+  })
+}
+
+</script>
 
 <style scoped>
 

@@ -2,44 +2,55 @@ package com.example.entity;
 
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.JSONWriter;
+import org.slf4j.MDC;
 
+import java.util.Optional;
 
-// 定义一个泛型记录类RestBean，用于封装返回结果
-public record RestBean<T>(int code, T data, String message) {
-    // 静态方法，用于创建一个表示成功的RestBean实例，包含数据
+/**
+ * 响应实体类封装，Rest风格
+ *
+ * @param code    状态码
+ * @param data    响应数据
+ * @param message 其他消息
+ * @param <T>     响应数据类型
+ */
+public record RestBean<T>(long id, int code, T data, String message) {
     public static <T> RestBean<T> success(T data) {
-        // 返回一个code为200，数据为传入的data，消息为"请求成功"的RestBean实例
-        return new RestBean<>(200, data, "请求成功");
+        return new RestBean<>(requestId(), 200, data, "请求成功");
     }
 
-    // 静态方法，用于创建一个表示成功的RestBean实例，不包含数据
     public static <T> RestBean<T> success() {
-        // 调用success(T data)方法，传入null作为数据
         return success(null);
     }
 
-    // 静态方法，用于创建一个表示未授权的RestBean实例
-    public static <T> RestBean<T> unauthorized(String message) {
-        // 调用failure(int code, String message)方法，传入401和消息
-        return failure(401, message);
-    }
-
-    // 静态方法，用于创建一个表示禁止访问的RestBean实例
     public static <T> RestBean<T> forbidden(String message) {
-        // 调用failure(int code, String message)方法，传入401和消息
+        return failure(403, message);
+    }
+
+    public static <T> RestBean<T> unauthorized(String message) {
         return failure(401, message);
     }
 
-    // 静态方法，用于创建一个表示失败的RestBean实例
     public static <T> RestBean<T> failure(int code, String message) {
-        // 返回一个code为传入的code，数据为null，消息为传入的message的RestBean实例
-        return new RestBean<>(code, null, message);
+        return new RestBean<>(requestId(), code, null, message);
     }
 
-    // 实例方法，将当前RestBean实例转换为JSON字符串
+    /**
+     * 快速将当前实体转换为JSON字符串格式
+     *
+     * @return JSON字符串
+     */
     public String asJsonString() {
-        // 使用JSONObject的toJSONString方法将当前实例转换为JSON字符串
-        // JSONWriter.Feature.WriteNulls表示在JSON字符串中包含null值
         return JSONObject.toJSONString(this, JSONWriter.Feature.WriteNulls);
+    }
+
+    /**
+     * 获取当前请求ID方便快速定位错误
+     *
+     * @return ID
+     */
+    private static long requestId() {
+        String requestId = Optional.ofNullable(MDC.get("reqId")).orElse("0");
+        return Long.parseLong(requestId);
     }
 }

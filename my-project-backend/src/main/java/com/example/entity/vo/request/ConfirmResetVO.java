@@ -7,9 +7,9 @@ import org.hibernate.validator.constraints.Length;
 
 @Data
 @AllArgsConstructor
-public class ConfirmResetVo {
+public class ConfirmResetVO {
     @Email
     String email;
-    @Length(min = 6, max = 6)
+    @Length(max = 6, min = 6)
     String code;
 }

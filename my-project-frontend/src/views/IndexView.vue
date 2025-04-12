@@ -1,14 +1,3 @@
-<script setup>
-
-import {logout} from "@/net/index.js";
-import router from "@/router";
-
-function userLogout() {
-  logout(() => router.push('/'))
-}
-
-</script>
-
 <template>
   <div style="width: 100vw; height: 100vh; overflow: hidden; position: relative">
     <!-- 背景图 -->
@@ -20,7 +9,7 @@ function userLogout() {
 
     <!-- 欢迎文字带毛玻璃 -->
     <div class="welcome-title">
-      青春无悔热爱
+      后期正在赶工中...
     </div>
 
     <!-- 退出登录按钮 -->
@@ -32,10 +21,19 @@ function userLogout() {
   </div>
 </template>
 
+<script setup>
+
+import {logout} from "@/net/index.js";
+import router from "@/router";
+
+function userLogout() {
+  logout(() => router.push('/'))
+}
+</script>
+
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
-
 .welcome-title {
   position: absolute;
   top: 15%;

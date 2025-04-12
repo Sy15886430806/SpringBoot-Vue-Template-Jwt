@@ -27,4 +27,8 @@ useDark({
 * {
   font-family: 'Noto Serif SC', serif;
 }
+
+header {
+  line-height: 1.5;
+}
 </style>

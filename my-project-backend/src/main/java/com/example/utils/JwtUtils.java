@@ -14,141 +14,175 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.awt.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 用于处理Jwt令牌的工具类
+ */
 @Component
 public class JwtUtils {
 
-    // 从配置文件中获取JWT的密钥
+    //用于给Jwt令牌签名校验的秘钥
     @Value("${spring.security.jwt.key}")
-    String key;
-
-    // 从配置文件中获取JWT的过期时间（小时）
+    private String key;
+    //令牌的过期时间，以小时为单位
     @Value("${spring.security.jwt.expire}")
-    int expire;
+    private int expire;
+    //为用户生成Jwt令牌的冷却时间，防止刷接口频繁登录生成令牌，以秒为单位
+    @Value("${spring.security.jwt.limit.base}")
+    private int limit_base;
+    //用户如果继续恶意刷令牌，更严厉的封禁时间
+    @Value("${spring.security.jwt.limit.upgrade}")
+    private int limit_upgrade;
+    //判定用户在冷却时间内，继续恶意刷令牌的次数
+    @Value("${spring.security.jwt.limit.frequency}")
+    private int limit_frequency;
 
-    // 注入StringRedisTemplate用于操作Redis
     @Resource
     StringRedisTemplate template;
 
-    // 使JWT失效
-    public boolean invalidateJwt(String headerToken) {
-        // 将请求头中的Token转换为标准Token格式
+    @Resource
+    FlowUtils utils;
+
+    /**
+     * 让指定Jwt令牌失效
+     * @param headerToken 请求头中携带的令牌
+     * @return 是否操作成功
+     */
+    public boolean invalidateJwt(String headerToken){
         String token = this.convertToken(headerToken);
-        if(token == null) return false;
-        // 使用HMAC256算法生成签名
         Algorithm algorithm = Algorithm.HMAC256(key);
-        // 创建JWT验证器
         JWTVerifier jwtVerifier = JWT.require(algorithm).build();
         try {
-            // 验证Token
-            DecodedJWT jwt = jwtVerifier.verify(token);
-            // 获取Token的ID
-            String id = jwt.getId();
-            // 将Token添加到黑名单并设置过期时间
-            return deleteToken(id, jwt.getExpiresAt());
+            DecodedJWT verify = jwtVerifier.verify(token);
+            return deleteToken(verify.getId(), verify.getExpiresAt());
         } catch (JWTVerificationException e) {
-            // Token验证失败，返回false
             return false;
         }
     }
 
-    // 将Token添加到黑名单
-    private boolean deleteToken(String uuid, Date time) {
-        // 检查Token是否已经失效
-        if(this.isInvalidToken(uuid)) return false;
-        // 获取当前时间
-        Date now = new Date();
-        // 计算Token的剩余过期时间
-        long expire = Math.max(time.getTime() - now.getTime(), 0);
-        // 将Token添加到Redis黑名单中，并设置过期时间
-        template.opsForValue().set(Const.JWT_BLACK_LIST + uuid, "", expire, TimeUnit.MILLISECONDS);
-        return true;
+    /**
+     * 根据配置快速计算过期时间
+     * @return 过期时间
+     */
+    public Date expireTime() {
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"));
+        calendar.add(Calendar.HOUR, expire);
+        return calendar.getTime();
     }
 
-
-    // 检查Token是否在黑名单中
-    private boolean isInvalidToken(String uuid) {
-        return template.hasKey(Const.JWT_BLACK_LIST + uuid);
-    }
-
-    // 解析JWT
-    public DecodedJWT resolveJwt(String headerToken) {
-        // 将请求头中的Token转换为标准Token格式
-        String token = this.convertToken(headerToken);
-        if (token == null) return null;
-        // 使用HMAC256算法生成签名
-        Algorithm algorithm = Algorithm.HMAC256(key);
-        // 创建JWT验证器
-        JWTVerifier jwtVerifier = JWT.require(algorithm).build();
-        try {
-            // 验证Token
-            DecodedJWT verify = jwtVerifier.verify(token);
-            // 检查Token是否在黑名单中
-            if(this.isInvalidToken(verify.getId())) return null;
-            // 获取Token的过期时间
-            Date expiresAt = verify.getExpiresAt();
-            // 检查Token是否过期
-            return new Date().after(expiresAt) ? null : verify;
-        } catch (JWTVerificationException e) {
-            // Token验证失败，返回null
+    /**
+     * 根据UserDetails生成对应的Jwt令牌
+     * @param user 用户信息
+     * @return 令牌
+     */
+    public String createJwt(UserDetails user, String username, int userId) {
+        if(this.frequencyCheck(userId)) {
+            Algorithm algorithm = Algorithm.HMAC256(key);
+            Date expire = this.expireTime();
+            return JWT.create()
+                    .withJWTId(UUID.randomUUID().toString())
+                    .withClaim("id", userId)
+                    .withClaim("name", username)
+                    .withClaim("authorities", user.getAuthorities()
+                            .stream()
+                            .map(GrantedAuthority::getAuthority).toList())
+                    .withExpiresAt(expire)
+                    .withIssuedAt(new Date())
+                    .sign(algorithm);
+        } else {
             return null;
         }
     }
 
-    // 创建JWT
-    public String createJwt(UserDetails details, int id, String username) {
-        // 使用HMAC256算法生成签名
+    /**
+     * 解析Jwt令牌
+     * @param headerToken 请求头中携带的令牌
+     * @return DecodedJWT
+     */
+    public DecodedJWT resolveJwt(String headerToken){
+        String token = this.convertToken(headerToken);
+        if(token == null) return null;
         Algorithm algorithm = Algorithm.HMAC256(key);
-        // 获取Token的过期时间
-        Date expire = this.expireTime();
-        // 创建JWT并设置相关信息
-        return JWT.create()
-                .withJWTId(UUID.randomUUID().toString()) // 设置Token的ID
-                .withClaim("id", id) // 设置用户ID
-                .withClaim("name", username) // 设置用户名
-                .withClaim("authorities", details.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList()) // 设置用户权限
-                .withExpiresAt(expire) // 设置Token的过期时间
-                .withIssuedAt(new Date()) // 设置Token的签发时间
-                .sign(algorithm); // 签名
+        JWTVerifier jwtVerifier = JWT.require(algorithm).build();
+        try {
+            DecodedJWT verify = jwtVerifier.verify(token);
+            if(this.isInvalidToken(verify.getId())) return null;
+            Map<String, Claim> claims = verify.getClaims();
+            return new Date().after(claims.get("exp").asDate()) ? null : verify;
+        } catch (JWTVerificationException e) {
+            return null;
+        }
     }
 
-    // 获取Token的过期时间
-    public Date expireTime() {
-        // 获取当前时间
-        Calendar calendar = Calendar.getInstance();
-        // 设置Token的过期时间为配置文件中的小时数
-        calendar.add(Calendar.HOUR, expire * 24);
-        return calendar.getTime();
-    }
-
-    // 将DecodedJWT转换为UserDetails
+    /**
+     * 将jwt对象中的内容封装为UserDetails
+     * @param jwt 已解析的Jwt对象
+     * @return UserDetails
+     */
     public UserDetails toUser(DecodedJWT jwt) {
-        // 获取Token中的所有声明
         Map<String, Claim> claims = jwt.getClaims();
-        // 创建UserDetails并设置相关信息
         return User
-                .withUsername(claims.get("name").asString()) // 设置用户名
-                .password("******") // 设置密码（此处为占位符）
-                .authorities(claims.get("authorities").asArray(String.class)) // 设置用户权限
+                .withUsername(claims.get("name").asString())
+                .password("******")
+                .authorities(claims.get("authorities").asArray(String.class))
                 .build();
     }
 
-    // 从DecodedJWT中获取用户ID
+    /**
+     * 将jwt对象中的用户ID提取出来
+     * @param jwt 已解析的Jwt对象
+     * @return 用户ID
+     */
     public Integer toId(DecodedJWT jwt) {
-        // 获取Token中的所有声明
         Map<String, Claim> claims = jwt.getClaims();
-        // 返回用户ID
         return claims.get("id").asInt();
     }
 
-    // 将请求头中的Token转换为标准Token格式
-    private String convertToken(String headerToken) {
-        // 检查请求头中的Token是否为空或格式不正确
-        if (headerToken == null || !headerToken.startsWith("Bearer ")) return null;
-        // 返回标准Token格式
+    /**
+     * 频率检测，防止用户高频申请Jwt令牌，并且采用阶段封禁机制
+     * 如果已经提示无法登录的情况下用户还在刷，那么就封禁更长时间
+     * @param userId 用户ID
+     * @return 是否通过频率检测
+     */
+    private boolean frequencyCheck(int userId){
+        String key = Const.JWT_FREQUENCY + userId;
+        return utils.limitOnceUpgradeCheck(key, limit_frequency, limit_base, limit_upgrade);
+    }
+
+    /**
+     * 校验并转换请求头中的Token令牌
+     * @param headerToken 请求头中的Token
+     * @return 转换后的令牌
+     */
+    private String convertToken(String headerToken){
+        if(headerToken == null || !headerToken.startsWith("Bearer "))
+            return null;
         return headerToken.substring(7);
+    }
+
+    /**
+     * 将Token列入Redis黑名单中
+     * @param uuid 令牌ID
+     * @param time 过期时间
+     * @return 是否操作成功
+     */
+    private boolean deleteToken(String uuid, Date time){
+        if(this.isInvalidToken(uuid))
+            return false;
+        Date now = new Date();
+        long expire = Math.max(time.getTime() - now.getTime(), 0);
+        template.opsForValue().set(Const.JWT_BLACK_LIST + uuid, "", expire, TimeUnit.MILLISECONDS);
+        return true;
+    }
+
+    /**
+     * 验证Token是否被列入Redis黑名单
+     * @param uuid 令牌ID
+     * @return 是否操作成功
+     */
+    private boolean isInvalidToken(String uuid){
+        return Boolean.TRUE.equals(template.hasKey(Const.JWT_BLACK_LIST + uuid));
     }
 }
