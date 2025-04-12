@@ -1,52 +1,65 @@
 package com.example.entity;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
+/**
+ * 用于DTO快速转换VO实现，只需将DTO类继承此类即可使用
+ */
 public interface BaseData {
-
-    // 泛型方法，将当前对象转换为指定类型的视图对象，并执行消费者操作
+    /**
+     * 创建指定的VO类并将当前DTO对象中的所有成员变量值直接复制到VO对象中
+     *
+     * @param clazz    指定VO类型
+     * @param consumer 返回VO对象之前可以使用Lambda进行额外处理
+     * @param <V>      指定VO类型
+     * @return 指定VO对象
+     */
     default <V> V asViewObject(Class<V> clazz, Consumer<V> consumer) {
-        // 调用另一个asViewObject方法创建视图对象
         V v = this.asViewObject(clazz);
-        // 执行消费者操作
         consumer.accept(v);
-        // 返回视图对象
         return v;
     }
 
-    // 泛型方法，将当前对象转换为指定类型的视图对象
+    /**
+     * 创建指定的VO类并将当前DTO对象中的所有成员变量值直接复制到VO对象中
+     *
+     * @param clazz 指定VO类型
+     * @param <V>   指定VO类型
+     * @return 指定VO对象
+     */
     default <V> V asViewObject(Class<V> clazz) {
         try {
-            // 获取指定类的所有声明字段
-            Field[] declaredFields = clazz.getDeclaredFields();
-            // 获取指定类的无参构造函数
+            Field[] fields = clazz.getDeclaredFields();
             Constructor<V> constructor = clazz.getConstructor();
-            // 创建指定类的实例
             V v = constructor.newInstance();
-            // 遍历所有声明字段，并调用convert方法进行转换
-            for (Field declarefField : declaredFields) convert(declarefField, v);
-            // 返回转换后的视图对象
+            Arrays.asList(fields).forEach(field -> convert(field, v));
             return v;
         } catch (ReflectiveOperationException exception) {
-            // 如果反射操作抛出异常，则抛出运行时异常
+            Logger logger = LoggerFactory.getLogger(BaseData.class);
+            logger.error("在VO与DTO转换时出现了一些错误", exception);
             throw new RuntimeException(exception.getMessage());
         }
     }
 
-    // 私有方法，将当前对象的字段值转换为视图对象的字段值
-    private void convert(Field field, Object vo) {
+    /**
+     * 内部使用，快速将当前类中目标对象字段同名字段的值复制到目标对象字段上
+     *
+     * @param field  目标对象字段
+     * @param target 目标对象
+     */
+    private void convert(Field field, Object target) {
         try {
-            // 获取当前对象的指定字段
             Field source = this.getClass().getDeclaredField(field.getName());
-            // 设置字段可访问
             field.setAccessible(true);
             source.setAccessible(true);
-            // 将当前对象的字段值设置到视图对象中
-            field.set(vo, source.get(this));
+            field.set(target, source.get(this));
         } catch (IllegalAccessException | NoSuchFieldException ignored) {
-            // 忽略非法访问异常和字段不存在异常
         }
     }
 }

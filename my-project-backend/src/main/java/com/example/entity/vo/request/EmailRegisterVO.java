@@ -5,11 +5,12 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 
+/**
+ * 用户注册表单信息
+ */
 @Data
-public class EmailRegisterVo {
-
+public class EmailRegisterVO {
     @Email
-    @Length(min = 4)
     String email;
     @Length(max = 6, min = 6)
     String code;
@@ -18,5 +19,4 @@ public class EmailRegisterVo {
     String username;
     @Length(min = 6, max = 20)
     String password;
-
 }

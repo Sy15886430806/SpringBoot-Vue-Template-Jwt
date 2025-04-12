@@ -1,4 +1,7 @@
 <template>
+  <div class="fullscreen-btn">
+    <el-button @click="toggleFullScreen" type="success" :icon="Check" circle />
+  </div>
   <div class="container">
     <el-image
         style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: -1"
@@ -33,8 +36,9 @@
 
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { ElButton, ElMessage } from 'element-plus';
+import {ref, computed, onMounted} from 'vue';
+import {ElButton, ElMessage} from 'element-plus';
+import {Check} from "@element-plus/icons-vue";
 
 const currentTime = ref('');
 const currentDate = ref('');
@@ -90,7 +94,7 @@ function stopTimer() {
   timer.value = 25 * 60; // 清空当前时间
   isRunning.value = false; // 停止计时器
   isResting.value = false; // 停止休息状态
-  ElMessage.warning('已停止计时，请重新开始');
+  ElMessage.warning('加油尹天祎！计时暂时停止，学习永不停步！');
 }
 
 // 计时器递减
@@ -102,12 +106,25 @@ function decrementTimer() {
     if (isResting.value) {
       isRunning.value = false;
       isResting.value = false;
-      ElMessage.success('休息结束，准备开始专注');
+      ElMessage.success('加油尹天祎！休息一会，准备开始专注！');
     } else {
       isRunning.value = false;
       isResting.value = false;
-      ElMessage.success('专注结束，开始休息');
+      ElMessage.success('加油尹天祎！专注时间结束，休息一会');
     }
+  }
+}
+
+function toggleFullScreen() {
+  const doc = document.documentElement;
+  if (!document.fullscreenElement) {
+    doc.requestFullscreen().catch((err) => {
+      ElMessage.error(`无法进入全屏模式: ${err.message}`);
+    });
+  } else {
+    document.exitFullscreen().catch((err) => {
+      ElMessage.error(`无法退出全屏模式: ${err.message}`);
+    });
   }
 }
 </script>
@@ -156,5 +173,14 @@ function decrementTimer() {
   justify-content: center;
   gap: 20px;
 }
+
+.fullscreen-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999; /* 确保按钮在最上层 */
+}
+
+
 
 </style>

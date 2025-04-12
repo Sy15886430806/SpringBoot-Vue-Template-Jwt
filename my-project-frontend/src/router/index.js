@@ -18,9 +18,9 @@ const router = createRouter({
                     name: 'welcome-register',
                     component: () => import('@/views/welcome/RegisterPage.vue')
                 }, {
-                    path: 'reset',
-                    name: 'welcome-reset',
-                    component: () => import('@/views/welcome/ResetPage.vue')
+                    path: 'forget',
+                    name: 'welcome-forget',
+                    component: () => import('@/views/welcome/ForgetPage.vue')
                 }
             ]
         }, {
@@ -36,12 +36,12 @@ const router = createRouter({
 })
 
 // 在路由跳转之前进行拦截处理
+// 调用 unauthorized() 函数判断当前用户是否未授权
+// 如果目标路由的名称以 'welcome-' 开头且用户未授权
+// 重定向到 '/index' 路由
 router.beforeEach((to, from, next) => {
-    // 调用 unauthorized() 函数判断当前用户是否未授权
     const isUnauthorized = unauthorized()
-    // 如果目标路由的名称以 'welcome-' 开头且用户未授权
     if(to.name.startsWith('welcome-') && !isUnauthorized) {
-        // 重定向到 '/index' 路由
         next('/index')
     } else if (to.fullPath.startsWith('/index') && isUnauthorized) {
         next('/')
